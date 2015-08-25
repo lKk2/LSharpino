@@ -75,8 +75,8 @@ namespace kSkarner
             var misc = new Menu("Misc", "Misc");
             //misc.AddItem(new MenuItem("SmartWUsage", "Smart W Usage")).SetValue(true);
             misc.AddItem(new MenuItem("useCPred", "Use [S]pacebar Prediction")).SetValue(true);
-            //misc.AddItem(new MenuItem("KSQ", "KS with Q")).SetValue(true);
-            //misc.AddItem(new MenuItem("KSE", "KS with E")).SetValue(true);
+            misc.AddItem(new MenuItem("KSQ", "KS with Q")).SetValue(true);
+            misc.AddItem(new MenuItem("KSE", "KS with E")).SetValue(true);
             config.AddSubMenu(misc);
 
             // Drawing
@@ -90,6 +90,7 @@ namespace kSkarner
 
         private static void Game_OnGameUpdate(EventArgs args)
         {
+            KS();
             switch (orbwalker.ActiveMode)
             {
                 case Orbwalking.OrbwalkingMode.Combo:
@@ -109,6 +110,27 @@ namespace kSkarner
 
         }
 
+
+        private static void KS()
+        {
+            var target = TargetSelector.GetTarget(E.Range, TargetSelector.DamageType.Physical);
+            if (config.Item("KSQ").GetValue<bool>() && Q.IsReady() && target.Health < Q.GetDamage(target) && player.Distance(target) < Q.Range &&
+                player.CountEnemiesInRange(Q.Range) == 1 && !target.IsDead && target.IsValidTarget())
+            {
+                Q.Cast();
+                return;
+            }
+            if (config.Item("KSE").GetValue<bool>() && E.IsReady() && target.Health < Q.GetDamage(target) && player.Distance(target) < E.Range &&
+                player.CountEnemiesInRange(E.Range) == 1 && !target.IsDead && target.IsValidTarget())
+            {
+                if (config.Item("useCPred").GetValue<bool>())
+                    tryE(target);
+                else
+                {
+                    E.Cast(target);
+                }
+            }
+        }
         private static void Clear()
         {
             if (player.ManaPercent > config.Item("minEmanaC").GetValue<Slider>().Value)
