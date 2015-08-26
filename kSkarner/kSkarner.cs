@@ -87,9 +87,20 @@ namespace kSkarner
             config.AddToMainMenu();
         }
 
-
+        
         private static void Game_OnGameUpdate(EventArgs args)
         {
+            if (SkarnerR)
+            {
+                orbwalker.SetAttack(false);
+                orbwalker.SetMovement(false);
+                player.IssueOrder(GameObjectOrder.MoveTo, Game.CursorPos);
+            }
+            else
+            {
+                orbwalker.SetAttack(true);
+                orbwalker.SetMovement(true);
+            }
             KS();
             switch (orbwalker.ActiveMode)
             {
@@ -113,7 +124,15 @@ namespace kSkarner
 
         private static void KS()
         {
+            if (SkarnerR)
+            {
+                return;
+            }
             var target = TargetSelector.GetTarget(E.Range, TargetSelector.DamageType.Physical);
+            if (target == null)
+            {
+                return;
+            }
             if (config.Item("KSQ").GetValue<bool>() && Q.IsReady() && target.Health < Q.GetDamage(target) && player.Distance(target) < Q.Range &&
                 player.CountEnemiesInRange(Q.Range) == 1 && !target.IsDead && target.IsValidTarget())
             {
@@ -133,28 +152,28 @@ namespace kSkarner
         }
         private static void Clear()
         {
-            if (player.ManaPercent > config.Item("minEmanaC").GetValue<Slider>().Value)
-            {
-                var MinionsQ =
-                        ObjectManager.Get<Obj_AI_Minion>().Count(i => !i.IsDead && i.IsEnemy && i.Distance(i) < Q.Range);
-                var testQ = MinionManager.GetMinions(Q.Range, MinionTypes.All, MinionTeam.Enemy);
-                var testQ2 = MinionManager.GetMinions(Q.Range, MinionTypes.All, MinionTeam.Neutral);
-                if (config.Item("useQC").GetValue<bool>() && Q.IsReady() && (testQ.Count >= 1 || testQ2.Count >= 1))
+                var mymana = (player.Mana >= (player.MaxMana*config.Item("minEmanaC").GetValue<Slider>().Value)/100);
+                var testQ = MinionManager.GetMinions(Q.Range);
+                var testQ2 = MinionManager.GetMinions(Q.Range, MinionTypes.All, MinionTeam.Neutral, MinionOrderTypes.MaxHealth);
+                if (mymana && config.Item("useQC").GetValue<bool>() && Q.IsReady() && (testQ.Count > 0 || testQ2.Count > 0))
                 {
                     Q.Cast();
                 }
-                if (config.Item("useEC").GetValue<bool>() && E.IsReady())
+                if (mymana && config.Item("useEC").GetValue<bool>() && E.IsReady() && (testQ.Count > 0 || testQ2.Count > 0))
                 {
                     MinionManager.FarmLocation bestE =
                         E.GetLineFarmLocation(MinionManager.GetMinions(E.Range, MinionTypes.All, MinionTeam.NotAlly));
                     E.Cast(bestE.Position);
                 }
-            }
         }
         private static void Combo()
         {
             Obj_AI_Base target = TargetSelector.GetTarget(E.Range, TargetSelector.DamageType.Physical);
             if (target == null)
+            {
+                return;
+            }
+            if (SkarnerR)
             {
                 return;
             }
@@ -181,7 +200,7 @@ namespace kSkarner
                 {
                     R.Cast(target);
                 }
-                if (player.CountEnemiesInRange(1500) < player.CountAlliesInRange(1000) && player.HealthPercent > 50)
+                if (player.CountEnemiesInRange(1500) <= player.CountAlliesInRange(1000) && player.HealthPercent > 40)
                 {
                     R.Cast(target);
                 }
@@ -196,11 +215,12 @@ namespace kSkarner
             {
                 return;
             }
-                if (config.Item("useQH").GetValue<bool>() && Q.CanCast(target))
+            var mymana = (player.Mana >= (player.MaxMana * config.Item("minEmanaC").GetValue<Slider>().Value) / 100);
+            if (mymana && config.Item("useQH").GetValue<bool>() && Q.CanCast(target))
                 {
                     Q.Cast(target);
                 }
-                if (config.Item("useEH").GetValue<bool>() && E.CanCast(target))
+                if (mymana && config.Item("useEH").GetValue<bool>() && E.CanCast(target))
                 {
                     if (config.Item("useCPred").GetValue<bool>())
                         tryE(target);
@@ -221,7 +241,12 @@ namespace kSkarner
                 E.SPredictionCast(enemy, hCance);
             }
         }
-    
+        // Thanks to Soresu //
+        private static bool SkarnerR
+        {
+            get { return player.Buffs.Any(buff => buff.Name == "skarnerimpalevo"); }
+        }
+
         private static void Game_OnDraw(EventArgs args)
         {
             if (config.Item("DrawQ").GetValue<bool>())
